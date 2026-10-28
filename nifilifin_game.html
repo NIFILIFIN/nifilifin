@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>ПУТЬ — Игра от NIFILIFIN</title>
+<style>
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; overflow:hidden; background:#05060a;
+              font-family:'Segoe UI',system-ui,monospace; color:#d8e8ff;
+              user-select:none; touch-action:manipulation; -webkit-user-select:none; }
+  body { display:flex; flex-direction:column; align-items:center; justify-content:center;
+         background:radial-gradient(circle at 50% 30%, #0a1226 0%, #05060a 75%); }
+         
+  #topBar { position:fixed; top:0; left:0; right:0; display:flex;
+            justify-content:space-between; align-items:center;
+            padding:10px 14px; font-size:13px; letter-spacing:1px;
+            color:#7aa8d8; z-index:5; pointer-events:none; gap:8px; }
+  #lvlLabel { color:#6cf; text-shadow:0 0 8px #0af; font-weight:700;
+              pointer-events:auto; cursor:pointer; }
+  #eggBar { color:#f0f; text-shadow:0 0 8px #f0f; font-weight:700;
+            pointer-events:none; font-size:12px; }
+            
+  #adminBtn { pointer-events:auto; width:32px; height:32px; border-radius:50%;
+              border:1px solid rgba(0,255,0,.35); background:rgba(0,255,0,.08);
+              color:#0f0; font-size:16px; cursor:pointer; margin-right:4px; display:none; }
+  #adminBtn.unlocked { display:inline-block; }
+  #resetBtn { pointer-events:auto; width:32px; height:32px; border-radius:50%;
+              border:1px solid rgba(100,180,255,.35); background:rgba(100,180,255,.08);
+              color:#8cf; font-size:16px; cursor:pointer; }
+              
+  #stage { position:relative; width:min(94vw, 460px); min-height:min(72vh, 460px);
+           display:flex; flex-direction:column; align-items:center; justify-content:center;
+           padding:20px; z-index:2; }
+           
+  #gameTitle { 
+    font-size: 26px; font-weight: 900; color: #6cf; 
+    text-shadow: 0 0 15px #0af; letter-spacing: 4px; margin-bottom: 4px; 
+  }
+  #gameAuthor {
+    font-size: 12px; color: #f0f; text-shadow: 0 0 8px #f0f; 
+    letter-spacing: 2px; margin-bottom: 20px;
+  }
+
+  #task { font-size:16px; text-align:center; line-height:1.5; margin-bottom:18px;
+          color:#bcd8ff; max-width:380px; }
+  #task b { color:#6cf; text-shadow:0 0 6px #0af; }
+  #area { display:flex; flex-wrap:wrap; gap:8px; justify-content:center;
+          align-items:center; max-width:400px; }
+          
+  .cell { width:54px; height:54px; border-radius:12px; display:flex;
+          align-items:center; justify-content:center; font-size:17px; font-weight:700;
+          border:1px solid rgba(100,180,255,.3); background:rgba(100,180,255,.06);
+          color:#cfe6ff; cursor:pointer; transition:transform .1s, background .15s,
+          border-color .15s; }
+  .cell:active { transform:scale(.93); }
+  .cell.on { background:linear-gradient(135deg,#0af,#08f); color:#001;
+             border-color:#0cf; box-shadow:0 0 18px rgba(0,180,255,.6); }
+  .cell.wrong { animation:wrong .35s; }
+  @keyframes wrong { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 50%{transform:translateX(6px)} 75%{transform:translateX(-4px)} }
+  
+  input[type=text] { background:rgba(100,180,255,.06); border:1px solid rgba(100,180,255,.3);
+                     color:#cfe6ff; font-size:16px; padding:8px 12px; border-radius:10px;
+                     font-family:monospace; text-align:center; letter-spacing:3px;
+                     width:170px; outline:none; }
+  input[type=text]:focus { border-color:#0cf; box-shadow:0 0 14px rgba(0,180,255,.4); }
+  
+  .btn { background:linear-gradient(135deg,#0af,#08f); color:#001; border:0;
+         padding:10px 22px; border-radius:12px; font-size:13px; font-weight:700;
+         letter-spacing:1px; cursor:pointer; box-shadow:0 0 20px rgba(0,160,255,.5); }
+  .btn:active { transform:scale(.95); }
+  .btn.ghost { background:rgba(100,180,255,.08); color:#8cf;
+               border:1px solid rgba(100,180,255,.35); box-shadow:none; }
+               
+  #feedback { margin-top:12px; font-size:13px; min-height:18px; color:#7aa8d8;
+              text-align:center; max-width:360px; }
+  #feedback.ok { color:#5f5; text-shadow:0 0 8px #0f0; }
+  #feedback.err { color:#f55; text-shadow:0 0 8px #f00; }
+  
+  #winOverlay { position:fixed; inset:0; display:none; flex-direction:column;
+                align-items:center; justify-content:center; text-align:center;
+                background:radial-gradient(circle, rgba(0,20,50,.94), rgba(0,0,0,.97));
+                padding:24px; z-index:20; }
+  #winOverlay.show { display:flex; }
+  #winOverlay h1 { font-size:22px; color:#6cf; text-shadow:0 0 20px #0af;
+                   letter-spacing:3px; margin:0 0 10px; }
+  #winOverlay p { color:#9cf; margin:4px 0 18px; font-size:14px; }
+  
+  #secretBtn { position:fixed; top:0; left:0; width:44px; height:44px;
+               background:transparent; border:0; z-index:100;
+               cursor:default; opacity:0; }
+               
+  /* ТОЧКА ДЛЯ ВХОДА В ЦЕЗАРЯ */
+  #secretDot { 
+    position:fixed; width:16px; height:16px; border-radius:50%;
+    background:rgba(255,255,255,0.15); 
+    bottom: 25%; left: 50%; transform: translateX(-50%);
+    z-index:150; cursor:pointer; display:none; 
+  }
+  #secretDot.active { display:block; }
+
+  #pwModal, #caesarModal { position:fixed; inset:0; display:none; align-items:center;
+             justify-content:center; background:rgba(0,0,0,.9); z-index:200;
+             flex-direction:column; gap:14px; padding:20px; }
+  #pwModal.show, #caesarModal.show { display:flex; }
+  #pwModal h2 { color:#6cf; text-shadow:0 0 10px #0af; margin:0; font-size:18px;
+                letter-spacing:2px; }
+  #caesarModal h2 { color:#ffd700; text-shadow:0 0 10px #b8860b; margin:0; font-size:18px;
+                    letter-spacing:2px; }
+
+  /* --- СТИЛИ ДЛЯ УРОВНЯ ЦЕЗАРЯ --- */
+  body.caesar-mode { background:#2a1e12; }
+  body.caesar-mode #lvlLabel { color:#ffd700; text-shadow:0 0 10px #b8860b; }
+  body.caesar-mode #task { color:#ffe4b5; }
+  body.caesar-mode #task b { color:#ffd700; }
+  
+  #caesarBg {
+    position:fixed; inset:0; z-index:0; pointer-events:none; display:none;
+    background-color:#d2b48c;
+    background-image: 
+      radial-gradient(circle at 20% 30%, rgba(139,69,19,0.15) 0%, transparent 40%),
+      radial-gradient(circle at 80% 70%, rgba(139,69,19,0.15) 0%, transparent 40%),
+      repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px),
+      repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+  }
+  body.caesar-mode #caesarBg { display:block; }
+  
+  #colosseum { position:absolute; bottom:0; left:0; width:100%; opacity:0.15; pointer-events:none; }
+  #caesarFace { position:absolute; top:10%; right:5%; width:120px; opacity:0.2; pointer-events:none; }
+
+  .caesar-btn { 
+    background:linear-gradient(135deg,#ffd700,#b8860b); color:#000;
+    border:1px solid #ffd700; padding:10px 18px; border-radius:8px; font-size:13px;
+    font-weight:700; margin:4px; cursor:pointer; box-shadow:0 0 15px rgba(255,215,0,.3);
+    font-family:'Times New Roman', serif;
+  }
+  .caesar-btn:active { transform:scale(.95); }
+  
+  body.hell { background:radial-gradient(circle at 50% 40%, #200505 0%, #000 80%); }
+  body.hell #task { color:#f99; }
+  body.hell #task b { color:#f33; text-shadow:0 0 8px #f00; }
+  body.hell #lvlLabel { color:#f33; text-shadow:0 0 10px #f00; }
+  
+  #saturnBg { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+              width:min(90vw,500px); height:min(90vw,500px); z-index:0;
+              pointer-events:none; opacity:0.15; display:none; }
+  body.hell #saturnBg { display:block; }
+  #eyeBg { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+           width:min(70vw,360px); height:min(70vw,360px); z-index:0;
+           pointer-events:none; opacity:0.08; display:none; }
+  body.hell #eyeBg { display:block; }
+  
+  .hellCell { background:rgba(180,30,30,.1) !important;
+              border-color:rgba(255,60,60,.4) !important; color:#f99 !important; }
+  .hexWrap { position:relative; width:300px; height:300px; margin:10px auto; }
+  .hexLine { position:absolute; background:rgba(255,60,60,.4); }
+  .hexDot { position:absolute; width:32px; height:32px; border-radius:50%;
+            background:rgba(180,30,30,.2); border:2px solid #f33;
+            display:flex; align-items:center; justify-content:center;
+            font-size:14px; font-weight:700; color:#f99; cursor:pointer;
+            transform:translate(-50%,-50%); transition:background .15s; }
+  .hexDot.on { background:#f33; color:#fff; box-shadow:0 0 16px #f00; }
+
+  #finalScreen { position:fixed; inset:0; display:none; flex-direction:column;
+                 align-items:center; justify-content:center; text-align:center;
+                 background:radial-gradient(circle, #1a0505 0%, #000 80%);
+                 z-index:50; padding:20px; overflow:hidden; }
+  #finalScreen.show { display:flex; }
+  .mason-sym { position:absolute; color:#a33; opacity:0.55; pointer-events:none;
+               text-shadow:0 0 8px #f00; font-weight:700; }
+  #nifi { font-size:clamp(32px, 10vw, 64px); font-weight:900; color:#f00;
+          text-shadow:0 0 10px #f00, 0 0 20px #f00, 0 0 40px #f00, 0 0 80px #f00;
+          letter-spacing:4px; cursor:pointer; margin:20px 0;
+          animation:pulseRed 1.5s ease-in-out infinite; user-select:none;
+          z-index:2; }
+  @keyframes pulseRed {
+    0%,100% { text-shadow:0 0 10px #f00, 0 0 20px #f00, 0 0 40px #f00, 0 0 80px #f00; }
+    50%     { text-shadow:0 0 20px #f00, 0 0 40px #f00, 0 0 80px #f00, 0 0 140px #f00; }
+  }
+  #mystery { display:none; margin-top:20px; font-size:clamp(28px,9vw,56px);
+             font-weight:900; color:#f00; letter-spacing:6px;
+             text-shadow:0 0 10px #f00, 0 0 20px #f00, 0 0 40px #f00,
+                         0 0 80px #f00, 0 0 160px #f00;
+             animation:blinkMystery .6s steps(2) infinite; z-index:2; }
+  #mystery.show { display:block; }
+  @keyframes blinkMystery { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+  #trophy { display:none; margin-top:20px; font-size:90px;
+            filter:drop-shadow(0 0 20px #ff0) drop-shadow(0 0 40px #f80);
+            animation:trophyGlow 2s ease-in-out infinite; z-index:2; }
+  #trophy.show { display:block; }
+  @keyframes trophyGlow {
+    0%,100% { transform:scale(1); filter:drop-shadow(0 0 20px #ff0) drop-shadow(0 0 40px #f80); }
+    50%     { transform:scale(1.08); filter:drop-shadow(0 0 30px #ff0) drop-shadow(0 0 60px #f80); }
+  }
+
+  #eggToast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+              background:rgba(0,20,50,.95); border:1px solid #0af; color:#6cf;
+              padding:10px 18px; border-radius:12px; font-size:13px;
+              letter-spacing:1px; z-index:300; opacity:0; transition:opacity .4s;
+              pointer-events:none; text-align:center;
+              box-shadow:0 0 20px rgba(0,180,255,.4); max-width:90vw; }
+  #eggToast.show { opacity:1; }
+  
+  body.glitch { animation:glitchBody .3s infinite; }
+  @keyframes glitchBody { 0%,100%{transform:translate(0,0)} 25%{transform:translate(-2px,1px)} 50%{transform:translate(2px,-1px)} 75%{transform:translate(-1px,-1px)} }
+
+  .corner-hint { position:fixed; width:60px; height:60px; border-radius:50%;
+                 border:2px solid rgba(0,255,255,0.5); pointer-events:none;
+                 opacity:0; transition:opacity .3s; z-index:400; }
+  .corner-hint.active { opacity:1; box-shadow:0 0 30px #0ff, inset 0 0 20px #0ff; }
+  #cTL { top:10px; left:10px; } #cTR { top:10px; right:10px; }
+  #cBL { bottom:10px; left:10px; } #cBR { bottom:10px; right:10px; }
+
+  #eyeTriBtn {
+    position:fixed; left:10px; bottom:15px; width:50px; height:50px;
+    z-index:99; cursor:pointer; opacity:0.08; transition:opacity .4s;
+    pointer-events:auto;
+  }
+  #eyeTriBtn:hover { opacity:0.4; }
+  #eyeTriBtn.reveal { opacity:1; animation:eyePulse .6s ease-out; }
+  @keyframes eyePulse { 0% { transform:scale(1); } 50% { transform:scale(1.4); filter:drop-shadow(0 0 20px #f00); } 100% { transform:scale(1); } }
+
+  #moonBtn {
+    position:fixed; right:15px; bottom:15px; width:50px; height:50px;
+    z-index:99; cursor:pointer; opacity:0.1; transition:opacity .4s;
+    pointer-events:auto;
+  }
+  #moonBtn:hover { opacity:0.5; }
+  #moonBtn.reveal { opacity:1; animation:eyePulse .6s ease-out; }
+
+  #adminPanel { position:fixed; inset:0; display:none; flex-direction:column;
+                align-items:center; justify-content:flex-start;
+                background:rgba(0,10,20,.97); z-index:250; padding:20px;
+                overflow-y:auto; }
+  #adminPanel.show { display:flex; }
+  #adminPanel h1 { color:#0f0; text-shadow:0 0 20px #0f0; font-size:20px;
+                   letter-spacing:3px; margin:10px 0 20px; }
+  #adminPanel .lvlGrid { display:grid; grid-template-columns:repeat(10,1fr);
+                         gap:4px; max-width:420px; width:100%; margin-bottom:20px; }
+  #adminPanel .lvlGrid button { padding:8px 0; font-size:11px; border-radius:6px;
+                                border:1px solid rgba(0,255,0,.3);
+                                background:rgba(0,255,0,.08); color:#0f0;
+                                font-weight:700; cursor:pointer; }
+  #adminPanel .lvlGrid button:active { transform:scale(.9); }
+  #adminPanel .lvlGrid button.current { background:#0f0; color:#000; box-shadow:0 0 10px #0f0; }
+  #adminPanel .row { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-bottom:14px; }
+  #adminPanel .btn { background:linear-gradient(135deg,#0f0,#080); color:#000; box-shadow:0 0 20px rgba(0,255,0,.5); }
+  #adminPanel .btn.hellBtn { background:linear-gradient(135deg,#f33,#900); color:#fff; }
+  #adminPanel .btn.caesarBtn { background:linear-gradient(135deg,#ffd700,#b8860b); color:#000; }
+</style>
+</head>
+<body>
+
+<div id="caesarBg">
+  <svg id="colosseum" viewBox="0 0 400 200" preserveAspectRatio="none">
+    <path d="M0 200 L0 120 Q50 100 100 110 Q150 120 200 100 Q250 80 300 90 Q350 100 400 80 L400 200 Z" fill="#8b4513"/>
+    <path d="M50 200 L50 130 M100 200 L100 120 M150 200 L150 115 M200 200 L200 100 M250 200 L250 95 M300 200 L300 90 M350 200 L350 85" stroke="#5c2e0b" stroke-width="4"/>
+  </svg>
+  <svg id="caesarFace" viewBox="0 0 100 100">
+    <circle cx="50" cy="50" r="40" fill="none" stroke="#8b4513" stroke-width="2"/>
+    <path d="M30 70 Q50 50 70 70" fill="none" stroke="#8b4513" stroke-width="3"/>
+    <path d="M20 40 Q30 10 50 10 Q70 10 80 40" fill="none" stroke="#8b4513" stroke-width="3"/>
+  </svg>
+</div>
+
+<div id="topBar">
+  <span id="lvlLabel">УРОВЕНЬ 1</span>
+  <span id="eggBar">🥚 0/7</span>
+  <div style="display:flex;">
+    <button id="adminBtn">⚙</button>
+    <button id="resetBtn">↺</button>
+  </div>
+</div>
+
+<button id="secretBtn" aria-label=""></button>
+<div id="secretDot" title="?"></div>
+
+<svg id="moonBtn" viewBox="0 0 100 100">
+  <path d="M 60 10 A 40 40 0 1 0 60 90 A 30 30 0 1 1 60 10 Z" fill="none" stroke="#0ff" stroke-width="4"/>
+</svg>
+
+<svg id="eyeTriBtn" viewBox="0 0 100 100">
+  <polygon points="50,10 92,85 8,85" fill="none" stroke="#ff0" stroke-width="3"/>
+  <circle cx="50" cy="62" r="12" fill="none" stroke="#ff0" stroke-width="3"/>
+  <circle cx="50" cy="62" r="5" fill="#ff0"/>
+</svg>
+
+<div class="corner-hint" id="cTL"></div>
+<div class="corner-hint" id="cTR"></div>
+<div class="corner-hint" id="cBL"></div>
+<div class="corner-hint" id="cBR"></div>
+
+<div id="pwModal">
+  <h2>СИСТЕМА ЗАЩИЩЕНА</h2>
+  <p style="color:#9cf;margin:0;font-size:13px">Введите код доступа</p>
+  <input type="text" id="pwInput" maxlength="6" inputmode="numeric" autocomplete="off">
+  <div style="display:flex;gap:10px">
+    <button class="btn" id="pwOk">ВОЙТИ</button>
+    <button class="btn ghost" id="pwCancel">ОТМЕНА</button>
+  </div>
+  <div id="pwFeedback" style="font-size:13px;min-height:18px"></div>
+</div>
+
+<div id="caesarModal">
+  <h2>CAESAR</h2>
+  <p style="color:#ffd700;margin:0;font-size:18px; font-weight:bold;">CDXIV = ?</p>
+  <input type="text" id="caesarInput" maxlength="4" inputmode="numeric" autocomplete="off" class="caesar-btn" style="background:rgba(0,0,0,0.3); color:#ffd700;">
+  <div style="display:flex;gap:10px">
+    <button class="btn caesar-btn" id="caesarOk">ВОЙТИ</button>
+    <button class="btn ghost" id="caesarCancel">ОТМЕНА</button>
+  </div>
+  <div id="caesarFeedback" style="font-size:13px;min-height:18px; color:#f55;"></div>
+</div>
+
+<div id="adminPanel">
+  <h1>ADMIN PANEL</h1>
+  <div class="row">
+    <button class="btn hellBtn" id="adminHell">−666</button>
+    <button class="btn caesarBtn" id="adminCaesar">Caesar 414</button>
+  </div>
+  <div class="lvlGrid" id="adminGrid"></div>
+  <div class="row">
+    <button class="btn ghost" id="adminClose">ЗАКРЫТЬ</button>
+  </div>
+</div>
+
+<svg id="saturnBg" viewBox="0 0 400 400">
+  <defs>
+    <radialGradient id="planetGrad" cx="40%" cy="35%">
+      <stop offset="0%" stop-color="#ff6a4a"/><stop offset="60%" stop-color="#b8301e"/><stop offset="100%" stop-color="#3a0a05"/>
+    </radialGradient>
+    <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ff8a6a" stop-opacity="0.2"/><stop offset="50%" stop-color="#ffb89a" stop-opacity="0.9"/><stop offset="100%" stop-color="#ff8a6a" stop-opacity="0.2"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="200" cy="200" rx="180" ry="45" fill="none" stroke="url(#ringGrad)" stroke-width="6" opacity="0.5" transform="rotate(-18 200 200)"/>
+  <circle cx="200" cy="200" r="100" fill="url(#planetGrad)"/>
+  <path d="M100 170 Q200 155 300 170" stroke="#ff8a6a" stroke-width="3" fill="none" opacity="0.35"/>
+  <path d="M100 230 Q200 245 300 230" stroke="#ff8a6a" stroke-width="3" fill="none" opacity="0.35"/>
+  <path d="M20 200 Q200 320 380 200" fill="none" stroke="url(#ringGrad)" stroke-width="6" opacity="0.9" transform="rotate(-18 200 200)"/>
+  <circle cx="200" cy="200" r="100" fill="none" stroke="#ff6a4a" stroke-width="1.5" opacity="0.8"/>
+</svg>
+
+<svg id="eyeBg" viewBox="0 0 300 300">
+  <path d="M20 150 Q150 40 280 150 Q150 260 20 150 Z" fill="none" stroke="#f33" stroke-width="2"/>
+  <circle cx="150" cy="150" r="45" fill="none" stroke="#f33" stroke-width="2"/>
+  <circle cx="150" cy="150" r="18" fill="#f33"/>
+</svg>
+
+<div id="stage">
+  <div id="gameTitle">ПУТЬ</div>
+  <div id="gameAuthor">A GAME BY NIFILIFIN</div>
+  <div id="task"></div>
+  <div id="area"></div>
+  <div id="feedback"></div>
+</div>
+
+<div id="winOverlay">
+  <h1 id="winTitle">УРОВЕНЬ ПРОЙДЕН</h1>
+  <p id="winText"></p>
+  <button class="btn" id="nextBtn">ДАЛЬШЕ</button>
+</div>
+
+<div id="finalScreen">
+  <div id="nifi">NIFILIFIN</div>
+  <div id="mystery">???</div>
+  <div id="trophy">🏆</div>
+</div>
+
+<div id="eggToast"></div>
+
+<script>
+const lvlLabel = document.getElementById('lvlLabel');
+const taskEl = document.getElementById('task');
+const areaEl = document.getElementById('area');
+const feedbackEl = document.getElementById('feedback');
+const winOverlay = document.getElementById('winOverlay');
+const winTitle = document.getElementById('winTitle');
+const winText = document.getElementById('winText');
+const nextBtn = document.getElementById('nextBtn');
+const eggToast = document.getElementById('eggToast');
+const eggBar = document.getElementById('eggBar');
+const adminBtn = document.getElementById('adminBtn');
+const gameTitle = document.getElementById('gameTitle');
+const gameAuthor = document.getElementById('gameAuthor');
+
+let currentLevel = 1;
+let totalLevels = 100;
+let inSecret = false;
+let secretStage = 0;
+let secretSolved = false;
+let adminUnlocked = localStorage.getItem('put_admin') === '1';
+if (adminUnlocked) adminBtn.classList.add('unlocked');
+
+const TOTAL_EGGS = 7;
+let foundEggs = JSON.parse(localStorage.getItem('put_eggs') || '[]');
+function updateEggBar() { 
+  eggBar.textContent = `🥚 ${foundEggs.length}/${TOTAL_EGGS}`; 
+}
+function markEgg(id) {
+  if (foundEggs.includes(id)) return;
+  foundEggs.push(id); 
+  localStorage.setItem('put_eggs', JSON.stringify(foundEggs)); 
+  updateEggBar();
+  beep(1200, .1, 'triangle', .15); 
+  setTimeout(() => beep(1600, .15, 'triangle', .15), 100);
+}
+
+let audioCtx = null;
+function beep(freq, dur=0.1, type='sine', vol=0.12) {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator(); 
+    const g = audioCtx.createGain();
+    o.type = type; 
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+    o.connect(g); 
+    g.connect(audioCtx.destination); 
+    o.start(); 
+    o.stop(audioCtx.currentTime + dur);
+  } catch(e) {}
+}
+function okSound() { 
+  beep(880, .1, 'triangle', .12); 
+  setTimeout(()=>beep(1320,.12,'triangle',.12),80); 
+}
+function errSound() { 
+  beep(180, .15, 'sawtooth', .12); 
+}
+
+function saveProgress() { 
+  localStorage.setItem('put_progress', JSON.stringify({ currentLevel, inSecret, secretStage, secretSolved })); 
+}
+function loadProgress() {
+  try {
+    const p = JSON.parse(localStorage.getItem('put_progress') || '{}');
+    if (p.currentLevel) currentLevel = p.currentLevel;
+    if (p.inSecret) inSecret = p.inSecret;
+    if (p.secretStage) secretStage = p.secretStage;
+    if (p.secretSolved) secretSolved = p.secretSolved;
+  } catch(e) {}
+}
+
+function normalizeNum(raw) {
+  if (raw === null || raw === undefined) return NaN;
+  let s = String(raw).trim().replace(',', '.').replace(/\s+/g, '');
+  if (s === '') return NaN;
+  s = s.replace(/^0+(?=\d)/, '');
+  const n = Number(s); 
+  return isNaN(n) ? NaN : n;
+}
+
+function clearArea() { 
+  areaEl.innerHTML = ''; 
+  feedbackEl.textContent = ''; 
+  feedbackEl.className = ''; 
+}
+function fb(text, cls='') { 
+  feedbackEl.textContent = text; 
+  feedbackEl.className = cls; 
+}
+function makeCell(content, onClick, cls='') {
+  const d = document.createElement('div'); 
+  d.className = 'cell ' + cls; 
+  d.textContent = content;
+  d.addEventListener('click', () => onClick(d)); 
+  return d;
+}
+function makeBtn(text, onClick, cls='btn') {
+  const b = document.createElement('button'); 
+  b.className = cls; 
+  b.textContent = text;
+  b.addEventListener('click', onClick); 
+  return b;
+}
+function makeInput(placeholder='') {
+  const i = document.createElement('input'); 
+  i.type = 'text'; 
+  i.placeholder = placeholder; 
+  return i;
+}
+function showWin(text, nextFn) {
+  winTitle.textContent = 'УРОВЕНЬ ПРОЙДЕН';
+  winText.textContent = text || ''; 
+  winOverlay.classList.add('show'); 
+  okSound();
+  nextBtn.onclick = () => { 
+    winOverlay.classList.remove('show'); 
+    nextFn(); 
+  };
+}
+function showEgg(msg, duration=3500) {
+  eggToast.textContent = msg; 
+  eggToast.classList.add('show');
+  clearTimeout(eggToast._t); 
+  eggToast._t = setTimeout(() => eggToast.classList.remove('show'), duration);
+}
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if (!confirm('Начать заново? Весь прогресс и найденные пасхалки сбросятся.')) return;
+  localStorage.clear(); 
+  location.reload();
+});
+
+/* АДМИН-ПАНЕЛЬ */
+const adminPanel = document.getElementById('adminPanel');
+const adminGrid = document.getElementById('adminGrid');
+function buildAdminGrid() {
+  adminGrid.innerHTML = '';
+  for (let i = 1; i <= 100; i++) {
+    const b = document.createElement('button'); 
+    b.textContent = i;
+    if (i === currentLevel && !inSecret) b.classList.add('current');
+    b.onclick = () => {
+      currentLevel = i; 
+      inSecret = false; 
+      secretStage = 0; 
+      saveProgress();
+      renderLevel(); 
+      buildAdminGrid(); 
+      beep(800, .1, 'sine', .12);
+    };
+    adminGrid.appendChild(b);
+  }
+}
+function openAdmin() { 
+  buildAdminGrid(); 
+  adminPanel.classList.add('show'); 
+  beep(600, .15, 'sine', .12); 
+}
+function closeAdmin() { 
+  adminPanel.classList.remove('show'); 
+}
+adminBtn.addEventListener('click', openAdmin);
+document.getElementById('adminClose').addEventListener('click', closeAdmin);
+document.getElementById('adminHell').addEventListener('click', () => {
+  inSecret = true; 
+  secretStage = 0; 
+  saveProgress(); 
+  closeAdmin(); 
+  renderSecretLevel();
+});
+document.getElementById('adminCaesar').addEventListener('click', () => {
+  closeAdmin(); 
+  renderCaesarLevel();
+});
+
+/* ПАСХАЛКА 1: ЛУНА */
+const moonBtn = document.getElementById('moonBtn');
+let moonClicks = 0;
+moonBtn.addEventListener('click', () => {
+  const hour = new Date().getHours();
+  if (hour >= 0 && hour < 4) {
+    markEgg('moon'); 
+    moonBtn.classList.add('reveal');
+    showEgg('🌙 ПОЛНОЧЬ. ЛУНА ОТКРЫВАЕТ ТАЙНЫ.', 5000);
+    setTimeout(() => moonBtn.classList.remove('reveal'), 600);
+  } else {
+    moonBtn.style.opacity = '0.4'; 
+    moonClicks++; 
+    beep(400, .1, 'sine', .1);
+    if (moonClicks > 2) { 
+      showEgg('Луна спит. Попробуй после полуночи.', 3000); 
+      moonClicks = 0; 
+    }
+  }
+});
+
+/* ПАСХАЛКА 2: NIFI */
+const CORNERS = ['TL','TR','BL','BR'];
+let cornerIdx = 0;
+const cornerEls = { 
+  TL: document.getElementById('cTL'), 
+  TR: document.getElementById('cTR'), 
+  BL: document.getElementById('cBL'), 
+  BR: document.getElementById('cBR') 
+};
+document.addEventListener('pointerdown', e => {
+  const w = window.innerWidth, h = window.innerHeight, x = e.clientX, y = e.clientY, EDGE = 80;
+  let corner = null;
+  if (x < EDGE && y < EDGE) corner = 'TL';
+  else if (x > w - EDGE && y < EDGE) corner = 'TR';
+  else if (x < EDGE && y > h - EDGE) corner = 'BL';
+  else if (x > w - EDGE && y > h - EDGE) corner = 'BR';
+  if (!corner) return;
+  if (corner === CORNERS[cornerIdx]) {
+    cornerEls[corner].classList.add('active'); 
+    beep(600 + cornerIdx * 200, .08, 'sine', .1);
+    setTimeout(() => cornerEls[corner].classList.remove('active'), 250); 
+    cornerIdx++;
+    if (cornerIdx === CORNERS.length) {
+      cornerIdx = 0; 
+      markEgg('nifi'); 
+      showEgg('👾 N-I-F-I. NIFILIFIN помнит тебя.', 4500);
+      beep(1047, .15, 'triangle', .15); 
+      setTimeout(() => beep(1319, .15, 'triangle', .15), 150); 
+      setTimeout(() => beep(1568, .2, 'triangle', .15), 300);
+    }
+  } else { 
+    cornerIdx = corner === CORNERS[0] ? 1 : 0; 
+  }
+}, true);
+
+/* ПАСХАЛКА 3: ГЛАЗ В ТРЕУГОЛЬНИКЕ */
+const eyeTriBtn = document.getElementById('eyeTriBtn');
+let eyeTriClicks = 0;
+eyeTriBtn.addEventListener('click', () => {
+  eyeTriClicks++;
+  if (eyeTriClicks < 3) { 
+    eyeTriBtn.style.opacity = '0.4'; 
+    beep(500 + eyeTriClicks * 200, .1, 'triangle', .12); 
+    return; 
+  }
+  eyeTriClicks = 0; 
+  eyeTriBtn.classList.add('reveal'); 
+  markEgg('mason_eye');
+  showEgg('👁 ВСЕВИДЯЩЕЕ ОКО ОТКРЫЛОСЬ. Ты видишь то, что скрыто.', 5000);
+  beep(80, .6, 'sawtooth', .2); 
+  setTimeout(() => beep(120, .6, 'sawtooth', .15), 300);
+  setTimeout(() => eyeTriBtn.classList.remove('reveal'), 600);
+});
+
+/* МОДАЛКИ */
+const pwModal = document.getElementById('pwModal');
+const pwInput = document.getElementById('pwInput');
+const pwFeedback = document.getElementById('pwFeedback');
+document.getElementById('pwOk').addEventListener('click', () => {
+  if (pwInput.value.trim() === '666') {
+    pwModal.classList.remove('show'); 
+    inSecret = true; 
+    secretStage = 0; 
+    saveProgress(); 
+    renderSecretLevel(); 
+    beep(80, .5, 'sawtooth', .2);
+  } else { 
+    pwFeedback.textContent = 'Отказано.'; 
+    pwFeedback.style.color = '#f55'; 
+    errSound(); 
+  }
+});
+document.getElementById('pwCancel').addEventListener('click', () => pwModal.classList.remove('show'));
+
+const caesarModal = document.getElementById('caesarModal');
+const caesarInput = document.getElementById('caesarInput');
+const caesarFeedback = document.getElementById('caesarFeedback');
+document.getElementById('caesarOk').addEventListener('click', () => {
+  if (caesarInput.value.trim() === '414') {
+    caesarModal.classList.remove('show'); 
+    renderCaesarLevel();
+  } else { 
+    caesarFeedback.textContent = 'Неверно.'; 
+    errSound(); 
+  }
+});
+document.getElementById('caesarCancel').addEventListener('click', () => caesarModal.classList.remove('show'));
+
+document.getElementById('secretBtn').addEventListener('click', () => {
+  if (currentLevel === 7) { pwModal.classList.add('show'); pwInput.value = ''; pwFeedback.textContent = ''; }
+});
+document.getElementById('secretDot').addEventListener('click', () => {
+  if (currentLevel === 7) { caesarModal.classList.add('show'); caesarInput.value = ''; caesarFeedback.textContent = ''; }
+});
+
+/* ШАБЛОНЫ */
+function levelInputNumber(answer, hint='') {
+  if (hint) taskEl.innerHTML = hint;
+  const inp = makeInput('число'); areaEl.appendChild(inp);
+  areaEl.appendChild(makeBtn('ОТВЕТ', () => {
+    const raw = inp.value.trim();
+    if (raw === 'admin' && currentLevel === 13) { 
+      localStorage.setItem('put_admin', '1'); 
+      adminBtn.classList.add('unlocked'); 
+      openAdmin(); 
+      return; 
+    }
+    const v = normalizeNum(raw); const a = normalizeNum(answer);
+    if (!isNaN(v) && !isNaN(a) && Math.abs(v - a) < 1e-9) showWin('Верно.', () => nextLevel());
+    else { errSound(); fb('Неверно.', 'err'); }
+  }));
+}
+function levelPressCondition(nums, checkFn, winText='Готово.') {
+  const targets = nums.filter(checkFn); let pressed = 0;
+  nums.forEach(n => {
+    areaEl.appendChild(makeCell(n, (el) => {
+      if (el.classList.contains('on')) return;
+      if (checkFn(n)) {
+        el.classList.add('on'); pressed++; 
+        beep(500 + pressed*20, .04, 'square', .06);
+        if (pressed === targets.length) showWin(winText, () => nextLevel());
+      } else { 
+        el.classList.add('wrong'); errSound(); 
+        setTimeout(()=>el.classList.remove('wrong'), 350); 
+      }
+    }));
+  });
+}
+function levelFindOdd(count, total, winText='Найдено.') {
+  const items = Array(total).fill('🟦'); const odds = new Set();
+  while (odds.size < count) odds.add(Math.floor(Math.random()*total));
+  odds.forEach(i => items[i] = '🟪'); let found = 0;
+  items.forEach((e, i) => {
+    const c = makeCell(e, (el) => {
+      if (el.classList.contains('on')) return;
+      if (odds.has(i)) {
+        el.classList.add('on'); found++; 
+        beep(600 + found*80, .06, 'sine', .09);
+        if (found === count) showWin(winText, () => nextLevel());
+      } else { 
+        el.classList.add('wrong'); errSound(); 
+        setTimeout(()=>el.classList.remove('wrong'), 350); 
+      }
+    });
+    c.style.fontSize = '17px'; areaEl.appendChild(c);
+  });
+}
+function levelMemoryPairs(pairs, winText='Все пары.') {
+  const arr = []; pairs.forEach(p => { arr.push(p); arr.push(p); });
+  arr.sort(() => Math.random() - 0.5);
+  let first = null, firstEl = null, matched = 0, lock = false;
+  arr.forEach(v => {
+    const c = makeCell('?', (el) => {
+      if (lock || el.classList.contains('on')) return;
+      el.textContent = v; el.classList.add('on'); 
+      beep(500, .06, 'sine', .08);
+      if (!first) { first = v; firstEl = el; return; }
+      if (v === first) {
+        matched++; first = null; firstEl = null;
+        if (matched === pairs.length) showWin(winText, () => nextLevel());
+      } else {
+        lock = true;
+        setTimeout(() => {
+          el.textContent = '?'; el.classList.remove('on');
+          if (firstEl) { firstEl.textContent = '?'; firstEl.classList.remove('on'); }
+          first = null; firstEl = null; lock = false; errSound();
+        }, 500);
+      }
+    });
+    areaEl.appendChild(c);
+  });
+}
+
+/* --- УРОВЕНЬ ЦЕЗАРЯ (10 ЗАДАНИЙ) --- */
+let caesarStep = 0;
+const CAESAR_QUESTIONS = [
+  { q: "В каком году родился Гай Юлий Цезарь?", a: ["100 г. до н.э.", "44 г. до н.э.", "50 г. н.э."], c: 0 },
+  { q: "Как называется река, которую перешел Цезарь со словами 'Жребий брошен'?", a: ["Тибр", "Рубикон", "Нил"], c: 1 },
+  { q: "Кто был верным соратником и правой рукой Цезаря?", a: ["Марк Антоний", "Помпей", "Брут"], c: 0 },
+  { q: "Что означает фраза 'Veni, vidi, vici'?", a: ["Пришел, увидел, победил", "Быстрее, выше, сильнее", "Разделяй и властвуй"], c: 0 },
+  { q: "В каком месяце отмечают убийство Цезаря (Мартовские иды)?", a: ["Январь", "Март", "Июль"], c: 1 },
+  { q: "Кто предал Цезаря в Сенате?", a: ["Брут", "Антоний", "Клеопатра"], c: 0 },
+  { q: "Как назывался титул, который принял Цезарь (дав имя месяцу)?", a: ["Август", "Император", "Фараон"], c: 1 },
+  { q: "Какая цифра в римской системе — X?", a: ["10", "5", "100"], c: 0 },
+  { q: "Расшифруй сдвиг Цезаря (на 3 буквы назад): 'FXUHW'", a: ["СЕКРЕТ", "ТАЙНА", "КОД"], c: 0 },
+  { q: "Какой римский полководец был главным соперником Цезаря в Гражданской войне?", a: ["Помпей", "Спартак", "Ганнибал"], c: 0 }
+];
+
+function renderCaesarLevel() {
+  document.body.className = 'caesar-mode';
+  lvlLabel.textContent = 'CAESAR 414';
+  caesarStep = 0;
+  renderCaesarStep();
+}
+
+function renderCaesarStep() {
+  clearArea();
+  if (caesarStep >= CAESAR_QUESTIONS.length) {
+    winTitle.textContent = 'CAESAR 414 ПРОЙДЕН';
+    winText.textContent = 'Ты знаешь историю. Ave, Caesar!';
+    winOverlay.classList.add('show');
+    nextBtn.onclick = () => { winOverlay.classList.remove('show'); currentLevel = 7; renderLevel(); };
+    return;
+  }
+  const q = CAESAR_QUESTIONS[caesarStep];
+  taskEl.innerHTML = `<span style="color:#ffd700; font-weight:bold;">[ ${caesarStep + 1} / 10 ]</span><br>${q.q}`;
+  
+  q.a.forEach((opt, i) => {
+    const b = makeBtn(opt, () => {
+      if (i === q.c) {
+        caesarStep++;
+        beep(800, .1, 'triangle', .12);
+        renderCaesarStep();
+      } else {
+        errSound(); fb('Неверно.', 'err');
+      }
+    }, 'caesar-btn');
+    areaEl.appendChild(b);
+  });
+}
+
+/* УРОВНИ 1-100 */
+const LEVELS = {};
+LEVELS[1] = () => { taskEl.innerHTML = 'Нажми на <b>все квадраты</b>.'; let p = 0; const total = 9; for (let i = 0; i < total; i++) areaEl.appendChild(makeCell('', (el) => { if (el.classList.contains('on')) return; el.classList.add('on'); p++; if (p === total) showWin('Все.', () => nextLevel()); })); };
+LEVELS[2] = () => { taskEl.innerHTML = 'Нажми <b>1 → 2 → 3 → 4</b>.'; [3,1,4,2].forEach(n => areaEl.appendChild(makeCell(n, (el) => { if (el.classList.contains('on')) return; const e = areaEl.querySelectorAll('.cell.on').length + 1; if (n === e) { el.classList.add('on'); if (e === 4) showWin('Порядок.', () => nextLevel()); } else { el.classList.add('wrong'); errSound(); setTimeout(() => { el.classList.remove('wrong'); areaEl.querySelectorAll('.cell').forEach(x=>x.classList.remove('on')); }, 350); } }))); };
+LEVELS[3] = () => { taskEl.innerHTML = 'Продолжи: <b>1, 4, 9, 16, ?</b>'; levelInputNumber(25, taskEl.innerHTML); };
+LEVELS[4] = () => { taskEl.innerHTML = 'Что <b>лишнее</b>: круг, квадрат, треугольник, куб?'; areaEl.appendChild(makeBtn('Круг', () => errSound(), 'btn ghost')); areaEl.appendChild(makeBtn('Квадрат', () => errSound(), 'btn ghost')); areaEl.appendChild(makeBtn('Треугольник', () => errSound(), 'btn ghost')); areaEl.appendChild(makeBtn('Куб', () => showWin('Куб — 3D, остальные плоские.', () => nextLevel()), 'btn ghost')); };
+LEVELS[5] = () => { taskEl.innerHTML = 'Найди <b>лишний</b> квадрат.'; levelFindOdd(1, 16); };
+LEVELS[6] = () => { taskEl.innerHTML = 'Нажми все, <b>кроме красных</b>.'; const total = 12; const reds = new Set(); while (reds.size < 2) reds.add(Math.floor(Math.random()*total)); let p = 0; for (let i = 0; i < total; i++) { const c = makeCell('', (el) => { if (el.classList.contains('on')) return; if (reds.has(i)) { errSound(); fb('Красный!', 'err'); areaEl.querySelectorAll('.cell').forEach(x => { if (x.dataset.red !== '1') x.classList.remove('on'); }); p = 0; return; } el.classList.add('on'); p++; if (p === total - 2) showWin('Все.', () => nextLevel()); }); if (reds.has(i)) { c.style.background = '#511'; c.style.borderColor = '#f33'; c.dataset.red = '1'; } areaEl.appendChild(c); } };
+LEVELS[7] = () => { taskEl.innerHTML = 'Сумма: <b>7 + 11 + 13 + 17</b>.'; levelInputNumber(48, taskEl.innerHTML); document.getElementById('secretBtn').style.pointerEvents = 'auto'; document.getElementById('secretDot').classList.add('active'); };
+LEVELS[8] = () => { taskEl.innerHTML = 'Повтори последовательность.'; const cells = []; for (let i = 0; i < 4; i++) { const c = makeCell(i+1, () => {}); areaEl.appendChild(c); cells.push(c); } const seq = Array.from({length:5}, () => Math.floor(Math.random()*4)); let idx = 0, showing = false; const showSeq = async () => { showing = true; fb('Смотри...'); for (const s of seq) { cells[s].classList.add('on'); await new Promise(r => setTimeout(r, 300)); cells[s].classList.remove('on'); await new Promise(r => setTimeout(r, 150)); } showing = false; fb('Повтори.'); }; cells.forEach((c, i) => { c.onclick = () => { if (showing) return; c.classList.add('on'); setTimeout(() => c.classList.remove('on'), 120); if (i === seq[idx]) { idx++; if (idx === seq.length) showWin('Точно.', () => nextLevel()); } else { errSound(); fb('Ошибка.', 'err'); idx = 0; showSeq(); } }; }); setTimeout(showSeq, 400); };
+LEVELS[9] = () => { taskEl.innerHTML = 'Что тяжелее: кг ваты или кг железа?'; areaEl.appendChild(makeBtn('Вата', () => errSound(), 'btn ghost')); areaEl.appendChild(makeBtn('Железо', () => errSound(), 'btn ghost')); areaEl.appendChild(makeBtn('Одинаково', () => showWin('Одинаково.', () => nextLevel()), 'btn ghost')); };
+LEVELS[10] = () => { taskEl.innerHTML = 'Цвета по порядку: <b style="color:#f55">красный</b>, <b style="color:#5f5">зелёный</b>, <b style="color:#55f">синий</b>.'; const target = ['#f55','#5f5','#55f']; let idx = 0; ['#f55','#5f5','#55f','#ff5','#f5f','#5ff'].forEach(col => { areaEl.appendChild(makeCell('', (el) => { el.style.background = col; if (col === target[idx]) { el.classList.add('on'); idx++; if (idx === 3) showWin('Цвета.', () => nextLevel()); } else { errSound(); fb('Не тот.', 'err'); idx = 0; areaEl.querySelectorAll('.cell').forEach(x => x.classList.remove('on')); } })); }); };
+LEVELS[11] = () => { taskEl.innerHTML = 'Сколько будет <b>9×8−17+6</b>?'; levelInputNumber(61, taskEl.innerHTML); };
+LEVELS[12] = () => { taskEl.innerHTML = 'Найди пары.'; levelMemoryPairs(['🍎','🍋','🍇','🍒']); };
+LEVELS[13] = () => { taskEl.innerHTML = 'Продолжи: <b>2,3,5,7,11,13,?</b>'; const inp = makeInput('число'); areaEl.appendChild(inp); areaEl.appendChild(makeBtn('ОТВЕТ', () => { const raw = inp.value.trim(); if (raw === 'admin') { localStorage.setItem('put_admin', '1'); adminBtn.classList.add('unlocked'); openAdmin(); return; } const v = normalizeNum(raw); if (v === 17) showWin('Простые.', () => nextLevel()); else { errSound(); fb('Неверно.', 'err'); } })); };
+LEVELS[14] = () => { taskEl.innerHTML = 'Нажми, <b>когда круг станет зелёным</b>.'; const circle = document.createElement('div'); circle.style.cssText = 'width:100px;height:100px;border-radius:50%;background:#a33;border:2px solid #f33;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;'; circle.textContent = 'ЖДИ'; areaEl.appendChild(circle); let green = false; setTimeout(() => { green = true; circle.style.background = '#3a3'; circle.style.borderColor = '#5f5'; circle.textContent = 'ЖМИ'; }, 1500 + Math.random()*2500); circle.onclick = () => { if (green) showWin('Точно.', () => nextLevel()); else { errSound(); fb('Рано.', 'err'); } }; };
+LEVELS[15] = () => { taskEl.innerHTML = 'Какое число <b>лишнее</b>: 4, 9, 16, 20, 25?'; levelInputNumber(20, taskEl.innerHTML); };
+LEVELS[16] = () => { taskEl.innerHTML = 'Нажми <b>все числа, делящиеся на 3</b>.'; const nums = [15, 4, 21, 8, 9, 10, 12, 17, 3, 22, 18, 5, 14, 24]; levelPressCondition(nums, n => n % 3 === 0); };
+LEVELS[17] = () => { taskEl.innerHTML = 'Сумма 1+2+...+20?'; levelInputNumber(210, taskEl.innerHTML); };
+LEVELS[18] = () => { taskEl.innerHTML = 'Найди <b>3 лишних</b>.'; levelFindOdd(3, 24); };
+LEVELS[19] = () => { taskEl.innerHTML = 'Нажми <b>А → Б → В → Г → Д → Е</b>.'; ['В','А','Д','Б','Е','Г'].forEach(letter => { areaEl.appendChild(makeCell(letter, (el) => { if (el.classList.contains('on')) return; const e = ['А','Б','В','Г','Д','Е'][areaEl.querySelectorAll('.cell.on').length]; if (letter === e) { el.classList.add('on'); if (areaEl.querySelectorAll('.cell.on').length === 6) showWin('Алфавит.', () => nextLevel()); } else { el.classList.add('wrong'); errSound(); setTimeout(() => { el.classList.remove('wrong'); areaEl.querySelectorAll('.cell').forEach(x=>x.classList.remove('on')); }, 350); } })); }); };
+LEVELS[20] = () => { taskEl.innerHTML = 'Все розы — цветы. Некоторые цветы увядают. Значит...'; areaEl.appendChild(makeBtn('Все розы увядают', () => errSound(), 'btn ghost')); areaEl.appendChild(makeBtn('Некоторые розы могут увядать', () => showWin('Верно.', () => nextLevel()), 'btn ghost')); areaEl.appendChild(makeBtn('Розы не цветы', () => errSound(), 'btn ghost')); };
+LEVELS[21] = () => { taskEl.innerHTML = 'Продолжи: <b>1, 11, 21, 1211, 111221, ?</b>'; levelInputNumber(312211, taskEl.innerHTML); };
+LEVELS[22] = () => { taskEl.innerHTML = '2¹⁰?'; levelInputNumber(1024, taskEl.innerHTML); };
+LEVELS[23] = () => { taskEl.innerHTML = 'Найди пары чисел.'; levelMemoryPairs([7,12,25,31]); };
+LEVELS[24] = () => { taskEl.innerHTML = '1,4,9,16,25,?'; levelInputNumber(36, taskEl.innerHTML); };
+LEVELS[25] = () => { taskEl.innerHTML = 'Нажми <b>самый большой</b> квадрат.'; const sizes = [40,48,56,64,72]; const max = Math.max(...sizes); sizes.sort(() => Math.random() - 0.5); sizes.forEach(s => { const c = makeCell('', (el) => { if (s === max) showWin('Самый.', () => nextLevel()); else { el.classList.add('wrong'); errSound(); setTimeout(()=>el.classList.remove('wrong'), 350); } }); c.style.width = s+'px'; c.style.height = s+'px'; areaEl.appendChild(c); }); };
+LEVELS[26] = () => { taskEl.innerHTML = 'Обратное к <b>7382</b>?'; levelInputNumber(2837, taskEl.innerHTML); };
+LEVELS[27] = () => { taskEl.innerHTML = 'Нажми <b>все чётные</b>.'; const nums = [7, 4, 11, 16, 3, 8, 13, 6, 15, 10, 5, 14, 9, 12, 2]; levelPressCondition(nums, n => n % 2 === 0); };
+LEVELS[28] = () => { taskEl.innerHTML = '7! ÷ 5!?'; levelInputNumber(42, taskEl.innerHTML); };
+LEVELS[29] = () => { taskEl.innerHTML = 'Нажми <b>1→9</b>, цифры меняются.'; const nums = [1,2,3,4,5,6,7,8,9]; let expected = 1; const build = () => { areaEl.innerHTML = ''; nums.sort(() => Math.random() - 0.5); nums.forEach(n => { areaEl.appendChild(makeCell(n, (el) => { if (n === expected) { el.classList.add('on'); el.style.pointerEvents = 'none'; expected++; if (expected > 9) { clearInterval(iv); showWin('Все 9.', () => nextLevel()); } } else { el.classList.add('wrong'); errSound(); setTimeout(()=>el.classList.remove('wrong'), 350); } })); }); }; build(); const iv = setInterval(build, 1200); };
+LEVELS[30] = () => { taskEl.innerHTML = 'Переведи римское число <b>MCMXCIV</b> в десятичную.'; levelInputNumber(1994, taskEl.innerHTML); };
+LEVELS[31] = () => { taskEl.innerHTML = 'Нажми <b>все простые</b>.'; const nums = [13, 4, 7, 15, 2, 18, 11, 6, 19, 9, 5, 12, 17, 3, 16]; levelPressCondition(nums, n => [2,3,5,7,11,13,17,19].includes(n)); };
+LEVELS[32] = () => { taskEl.innerHTML = '2,6,12,20,30,?'; levelInputNumber(42, taskEl.innerHTML); };
+LEVELS[33] = () => { taskEl.innerHTML = 'Нажми <b>все гласные</b> в ГОЛОВОЛОМКА.'; const letters = ['Г','О','Л','О','В','О','Л','О','М','К','А']; const vowels = new Set(['О','А','Е','Ё','И','Ы','У','Э','Ю','Я']); const total = letters.filter(l => vowels.has(l)).length; let p = 0; letters.forEach(l => { areaEl.appendChild(makeCell(l, (el) => { if (el.classList.contains('on')) return; if (vowels.has(l)) { el.classList.add('on'); p++; if (p === total) showWin('Гласные.', () => nextLevel()); } else { el.classList.add('wrong'); errSound(); setTimeout(()=>el.classList.remove('wrong'), 350); } })); }); };
+LEVELS[34] = () => { taskEl.innerHTML = '√144 + √81 − √49?'; levelInputNumber(14, taskEl.innerHTML); };
+LEVELS[35] = () => { taskEl.innerHTML = 'Нажми <b>числа, не делящиеся ни на 2, ни на 3</b>.'; const nums = [7, 15, 10, 5, 18, 12, 11, 4, 13, 9, 17, 8, 6, 19, 14, 3, 16, 20, 1]; levelPressCondition(nums, n => n % 2 !== 0 && n % 3 !== 0); };
+LEVELS[36] = () => { taskEl.innerHTML = 'Сумма углов пятиугольника?'; levelInputNumber(540, taskEl.innerHTML); };
+LEVELS[37] = () => { taskEl.innerHTML = 'Нажми <b>все палиндромы</b> (числа, читающиеся одинаково в обе стороны).'; const nums = [121, 234, 456, 789, 101, 323, 505, 707, 999, 110, 221]; levelPressCondition(nums, n => String(n) === String(n).split('').reverse().join('')); };
+LEVELS[38] = () => { taskEl.innerHTML = 'Дождь → мокрая земля. Земля мокрая. Значит...'; areaEl.appendChild(makeBtn('Идёт дождь', () => errSound(), 'btn ghost')); areaEl.appendChild(makeBtn('Нельзя точно сказать', () => showWin('Верно.', () => nextLevel()), 'btn ghost')); areaEl.appendChild(makeBtn('Дождя нет', () => errSound(), 'btn ghost')); };
+LEVELS[39] = () => { taskEl.innerHTML = 'Нажми <b>шахматный порядок</b>.'; let p = 0; for (let i = 0; i < 16; i++) { const row = Math.floor(i/4), col = i%4; const isT = (row+col) % 2 === 0; areaEl.appendChild(makeCell('', (el) => { if (el.classList.contains('on')) return; if (isT) { el.classList.add('on'); p++; if (p === 8) showWin('Шахматы.', () => nextLevel()); } else { el.classList.add('wrong'); errSound(); setTimeout(()=>el.classList.remove('wrong'), 350); } })); } };
+LEVELS[40] = () => { taskEl.innerHTML = 'Переведи двоичное число <b>101</b> в десятичную.'; levelInputNumber(5, taskEl.innerHTML); };
+LEVELS[41] = () => { taskEl.innerHTML = 'Сколько <b>квадратов всех размеров</b> на поле 3×3?'; levelInputNumber(14, taskEl.innerHTML); };
+LEVELS[42] = () => { taskEl.innerHTML = 'Сумма первых 10 чисел Фибоначчи?'; levelInputNumber(143, taskEl.innerHTML); };
+LEVELS[43] = () => { taskEl.innerHTML = 'Нажми <b>все числа, кратные 7</b>.'; const nums = [42, 5, 91, 13, 7, 28, 50, 63, 2, 77, 19, 35, 84, 11, 56, 3, 98, 21, 46, 14, 8, 70, 25, 49]; levelPressCondition(nums, n => n % 7 === 0 && n >= 7 && n <= 98); };
+LEVELS[44] = () => { taskEl.innerHTML = 'Что больше: <b>2¹⁰⁰</b> или <b>100²</b>?'; areaEl.appendChild(makeBtn('2¹⁰⁰', () => showWin('Да.', () => nextLevel()), 'btn ghost')); areaEl.appendChild(makeBtn('100²', () => errSound(), 'btn ghost')); };
+LEVELS[45] = () => { taskEl.innerHTML = 'У отца 5 сыновей. У каждого есть сестра. Сколько всего детей?'; levelInputNumber(6, taskEl.innerHTML); };
+LEVELS[46] = () => { taskEl.innerHTML = 'Сумма: 2+4+6+...+20?'; levelInputNumber(110, taskEl.innerHTML); };
+LEVELS[47] = () => { taskEl.innerHTML = 'Нажми <b>все простые числа</b>.'; const nums = [17, 4, 13, 8, 9, 10, 11, 14, 2, 15, 23, 6, 19, 21, 16]; levelPressCondition(nums, n => [2,3,5,7,11,13,17,19,23].includes(n)); };
+LEVELS[48] = () => { taskEl.innerHTML = 'Сколько простых чисел от 1 до 30?'; levelInputNumber(10, taskEl.innerHTML); };
+LEVELS[49] = () => { taskEl.innerHTML = 'Найди <b>пары</b>.'; levelMemoryPairs([11,22,33,44,55,66]); };
+LEVELS[50] = () => { taskEl.innerHTML = 'Что больше: <b>√50</b> или <b>7</b>?'; let correctCount = 0; areaEl.appendChild(makeBtn('√50', () => { correctCount++; if (correctCount < 3) { fb(`Верно (${correctCount}/3). Нажми ещё.`, 'ok'); beep(700 + correctCount * 100, .08, 'sine', .1); return; } markEgg('sqrt50'); showEgg('📐 √50 ≈ 7.071. Ты знаешь это лучше многих.', 3500); showWin('Верно: √50 ≈ 7.071 > 7.', () => nextLevel()); }, 'btn ghost')); areaEl.appendChild(makeBtn('7', () => { errSound(); fb('Нет: 7² = 49 < 50, значит √50 > 7.', 'err'); }, 'btn ghost')); };
+LEVELS[51] = () => { taskEl.innerHTML = 'Сумма 1+3+5+...+19?'; levelInputNumber(100, taskEl.innerHTML); };
+LEVELS[52] = () => { taskEl.innerHTML = 'Факториал 5?'; levelInputNumber(120, taskEl.innerHTML); };
+LEVELS[53] = () => { taskEl.innerHTML = 'Нажми <b>все числа, в которых есть цифра 7</b>.'; const nums = [17, 3, 72, 45, 7, 88, 27, 14, 70, 5, 37, 62, 47, 9, 75, 22, 57, 68, 67, 31, 79, 8, 87, 54, 97, 76, 2, 73]; levelPressCondition(nums, n => String(n).includes('7')); };
+LEVELS[54] = () => { taskEl.innerHTML = 'Реши: <b>3x + 7 = 22</b>. Чему равен x?'; levelInputNumber(5, taskEl.innerHTML); };
+LEVELS[55] = () => { taskEl.innerHTML = 'Нажми <b>числа с чётной суммой цифр</b>.'; const nums = [15, 7, 10, 3, 12, 8, 14, 5, 11, 16, 9, 6, 13, 4, 2]; levelPressCondition(nums, n => String(n).split('').reduce((a,b)=>a+ +b,0) % 2 === 0); };
+LEVELS[56] = () => { taskEl.innerHTML = 'Сумма углов шестиугольника?'; levelInputNumber(720, taskEl.innerHTML); };
+LEVELS[57] = () => { taskEl.innerHTML = 'Продолжи: <b>1, 8, 27, 64, ?</b>'; levelInputNumber(125, taskEl.innerHTML); };
+LEVELS[58] = () => { taskEl.innerHTML = 'Последний високосный год до 2025?'; levelInputNumber(2024, taskEl.innerHTML); };
+LEVELS[59] = () => { taskEl.innerHTML = 'Нажми <b>все числа, которые не меняются при перевороте</b> (состоят только из 0, 1, 8).'; const nums = [18, 3, 101, 47, 8, 25, 88, 14, 10, 6, 81, 39, 1, 55, 111, 20, 11, 72, 80, 4, 9, 12, 2, 7, 13, 5]; levelPressCondition(nums, n => /^[018]+$/.test(String(n))); };
+LEVELS[60] = () => { taskEl.innerHTML = 'Сколько делителей у числа 24?'; levelInputNumber(8, taskEl.innerHTML); };
+LEVELS[61] = () => { taskEl.innerHTML = 'Какое число лишнее: 2, 3, 5, 7, 9, 11?'; levelInputNumber(9, taskEl.innerHTML); };
+LEVELS[62] = () => { taskEl.innerHTML = 'Сумма цифр числа 98765?'; levelInputNumber(35, taskEl.innerHTML); };
+LEVELS[63] = () => { taskEl.innerHTML = 'Нажми <b>все полные квадраты</b>.'; const nums = [16, 3, 49, 27, 9, 50, 36, 11, 1, 44, 64, 20, 25, 7, 81, 38, 4, 59, 12, 2, 33, 15, 5, 8, 10, 13, 14]; levelPressCondition(nums, n => [1,4,9,16,25,36,49,64,81].includes(n)); };
+LEVELS[64] = () => { taskEl.innerHTML = 'Расставь <b>8 ферзей</b> на доске 8×8, чтобы они не били друг друга. Нажми 8 клеток.'; const N = 8; const board = []; const grid = document.createElement('div'); grid.style.cssText = 'display:grid;grid-template-columns:repeat(8,32px);border:2px solid #08f;border-radius:4px;overflow:hidden;'; for (let r = 0; r < N; r++) { for (let c = 0; c < N; c++) { const cell = document.createElement('div'); cell.style.cssText = `width:32px;height:32px;cursor:pointer;background:${(r+c)%2 ? '#1a2440' : '#0e1428'};display:flex;align-items:center;justify-content:center;font-size:20px;color:#6cf;`; cell.onclick = () => { if (cell.textContent === '♛') { cell.textContent = ''; board.splice(board.findIndex(b => b.r===r && b.c===c), 1); return; } if (board.length >= N) return; if (board.some(b => b.r === r || b.c === c || Math.abs(b.r-r) === Math.abs(b.c-c))) { cell.classList.add('wrong'); errSound(); setTimeout(() => cell.classList.remove('wrong'), 350); return; } cell.textContent = '♛'; board.push({r, c}); beep(600 + board.length*80, .06, 'sine', .08); if (board.length === N) showWin('8 ферзей расставлены.', () => nextLevel()); }; grid.appendChild(cell); } } areaEl.appendChild(grid); };
+LEVELS[65] = () => { taskEl.innerHTML = 'Что больше: <b>0.99¹⁰</b> или <b>0.999¹⁰</b>? Введи <b>1</b> если первое, <b>2</b> если второе.'; const inp = makeInput('1 или 2'); areaEl.appendChild(inp); areaEl.appendChild(makeBtn('ОТВЕТ', () => { if (normalizeNum(inp.value) === 2) showWin('Верно: 0.999¹⁰ больше.', () => nextLevel()); else { errSound(); fb('Неверно.', 'err'); } })); };
+LEVELS[66] = () => { taskEl.innerHTML = 'Найди <b>пары</b>.'; levelMemoryPairs([101,202,303,404]); };
+LEVELS[67] = () => { taskEl.innerHTML = 'Сумма углов треугольника + квадрата?'; levelInputNumber(540, taskEl.innerHTML); };
+LEVELS[68] = () => { taskEl.innerHTML = 'Кол-во вершин у додекаэдра?'; levelInputNumber(20, taskEl.innerHTML); };
+LEVELS[69] = () => { taskEl.innerHTML = 'Переведи римское <b>XLII</b> в десятичную.'; levelInputNumber(42, taskEl.innerHTML); };
+LEVELS[70] = () => { taskEl.innerHTML = 'Число, обратное 2/3?'; levelInputNumber(1.5, taskEl.innerHTML); };
+LEVELS[71] = () => { taskEl.innerHTML = 'Секунд в 1.5 часах?'; levelInputNumber(5400, taskEl.innerHTML); };
+LEVELS[72] = () => { taskEl.innerHTML = 'Нажми <b>все палиндромы</b>.'; const nums = [1331, 2001, 1001, 1551, 2002, 1111, 1881, 1221, 1991, 1441, 1661, 1771]; levelPressCondition(nums, n => String(n) === String(n).split('').reverse().join('')); };
+LEVELS[73] = () => { taskEl.innerHTML = 'Сумма 1..100?'; levelInputNumber(5050, taskEl.innerHTML); };
+LEVELS[74] = () => { taskEl.innerHTML = '2 + 2 × 2?'; levelInputNumber(6, taskEl.innerHTML); };
+LEVELS[75] = () => { taskEl.innerHTML = 'Нажми <b>числа с суммой цифр = 10</b>.'; const nums = [37, 6, 82, 14, 55, 23, 91, 8, 19, 44, 64, 31, 28, 7, 73, 50, 46, 12, 2, 68, 9, 25, 3, 5]; levelPressCondition(nums, n => String(n).split('').reduce((a,b)=>a+ +b,0) === 10); };
+LEVELS[76] = () => { taskEl.innerHTML = 'Уравнение <b>X² = 144</b>. Найди <b>положительный</b> корень.'; levelInputNumber(12, taskEl.innerHTML); };
+LEVELS[77] = () => { taskEl.innerHTML = 'Нажми <b>все числа, у которых больше 4 делителей</b> (делитель — число, на которое оно делится без остатка).'; const nums = [24, 5, 18, 11, 32, 7, 12, 19, 28, 3, 16, 13, 30, 2, 20, 17, 9, 15, 8, 14, 6, 10, 1, 4]; levelPressCondition(nums, n => { let c = 0; for (let i = 1; i <= n; i++) if (n % i === 0) c++; return c > 4; }); };
+LEVELS[78] = () => { taskEl.innerHTML = 'Найди <b>пары</b>.'; levelMemoryPairs([7,17,27,37,47,57]); };
+LEVELS[79] = () => { taskEl.innerHTML = '11! / 9!?'; levelInputNumber(110, taskEl.innerHTML); };
+LEVELS[80] = () => { taskEl.innerHTML = 'Нажми <b>все числа ровно с 2 делителями</b> (делитель — число, на которое оно делится без остатка).'; const nums = [13, 4, 23, 9, 2, 16, 7, 12, 29, 6, 11, 8, 19, 10, 3, 15, 5, 14, 17, 1]; levelPressCondition(nums, n => { let c = 0; for (let i = 1; i <= n; i++) if (n % i === 0) c++; return c === 2; }); };
+LEVELS[81] = () => { taskEl.innerHTML = '2 + 3 × 4 − 6 / 2?'; levelInputNumber(11, taskEl.innerHTML); };
+LEVELS[82] = () => { taskEl.innerHTML = '12! / 10!?'; levelInputNumber(132, taskEl.innerHTML); };
+LEVELS[83] = () => { taskEl.innerHTML = 'Сколько простых чисел меньше 50?'; levelInputNumber(15, taskEl.innerHTML); };
+LEVELS[84] = () => { taskEl.innerHTML = '2, 4, 8, 16, 32, ?'; levelInputNumber(64, taskEl.innerHTML); };
+LEVELS[85] = () => { taskEl.innerHTML = 'Нажми <b>все числа Фибоначчи</b> (каждое — сумма двух предыдущих: 1, 1, 2, 3, 5, 8...).'; const nums = [21, 4, 13, 9, 34, 10, 2, 16, 55, 7, 8, 12, 89, 14, 3, 18, 5, 11, 15, 1, 6, 17, 19, 20]; levelPressCondition(nums, n => [1,2,3,5,8,13,21,34,55,89].includes(n)); };
+LEVELS[86] = () => { taskEl.innerHTML = 'Что больше: <b>3⁴</b> или <b>4³</b>? Введи <b>1</b> если первое, <b>2</b> если второе.'; const inp = makeInput('1 или 2'); areaEl.appendChild(inp); areaEl.appendChild(makeBtn('ОТВЕТ', () => { if (normalizeNum(inp.value) === 1) showWin('Верно: 81 > 64.', () => nextLevel()); else { errSound(); fb('Неверно.', 'err'); } })); };
+LEVELS[87] = () => { taskEl.innerHTML = 'Уравнение <b>X² − 5x + 6 = 0</b>. Найди больший корень.'; levelInputNumber(3, taskEl.innerHTML); };
+LEVELS[88] = () => { taskEl.innerHTML = 'Нажми <b>все числа, делящиеся на 4</b>.'; const nums = [24, 5, 8, 13, 36, 7, 12, 19, 40, 3, 16, 11, 28, 2, 20, 17, 4, 15, 32, 6, 9, 10, 1]; levelPressCondition(nums, n => n % 4 === 0); };
+LEVELS[89] = () => { taskEl.innerHTML = 'Сумма квадратов 1..5?'; levelInputNumber(55, taskEl.innerHTML); };
+LEVELS[90] = () => { taskEl.innerHTML = '2⁸ + 2⁷?'; levelInputNumber(384, taskEl.innerHTML); };
+LEVELS[91] = () => { taskEl.innerHTML = 'Нажми <b>все числа ровно с 6 делителями</b> (делитель — число, на которое оно делится без остатка).'; const nums = [28, 5, 12, 17, 45, 8, 32, 11, 18, 7, 50, 3, 20, 14, 44, 2, 52, 19, 1, 15, 9, 13, 4, 21]; levelPressCondition(nums, n => { let c = 0; for (let i = 1; i <= n; i++) if (n % i === 0) c++; return c === 6; }); };
+LEVELS[92] = () => { taskEl.innerHTML = 'Сколько будет <b>2 в степени 10, делённое на 2 в степени 7</b>?'; levelInputNumber(8, taskEl.innerHTML); };
+LEVELS[93] = () => { taskEl.innerHTML = 'Найди <b>пары</b>.'; levelMemoryPairs([1,2,4,8,16,32,64,128]); };
+LEVELS[94] = () => { taskEl.innerHTML = '1, 1, 2, 3, 5, 8, 13, 21, ?'; levelInputNumber(34, taskEl.innerHTML); };
+LEVELS[95] = () => { taskEl.innerHTML = '7!/6! + 5!/4!?'; levelInputNumber(12, taskEl.innerHTML); };
+LEVELS[96] = () => { taskEl.innerHTML = 'Нажми <b>все числа, у которых цифры идут строго по возрастанию</b> (например, 123 — да, 132 — нет).'; const nums = [24, 31, 13, 42, 35, 11, 15, 54, 23, 22, 45, 33, 12, 44, 25, 43, 14, 32, 123, 21, 234, 55, 34]; levelPressCondition(nums, n => { const s = String(n); for (let i = 1; i < s.length; i++) if (s[i] <= s[i-1]) return false; return true; }); };
+LEVELS[97] = () => { taskEl.innerHTML = 'Сумма 1..50?'; levelInputNumber(1275, taskEl.innerHTML); };
+LEVELS[98] = () => { taskEl.innerHTML = '√(16² + 12²)?'; levelInputNumber(20, taskEl.innerHTML); };
+LEVELS[99] = () => { taskEl.innerHTML = 'Нажми <b>все простые числа от 50 до 100</b>.'; const nums = [61, 52, 83, 57, 71, 64, 97, 54, 59, 66, 73, 55, 89, 60, 53, 62, 79, 56, 67, 51, 58, 65, 63]; levelPressCondition(nums, n => [53,59,61,67,71,73,79,83,89,97].includes(n)); };
+LEVELS[100] = () => { taskEl.innerHTML = 'Сколько раз цифра <b>7</b> встречается в числах от 1 до 100?'; const inp = makeInput('число'); areaEl.appendChild(inp); areaEl.appendChild(makeBtn('ОТВЕТ', () => { if (normalizeNum(inp.value) === 20) showFinalScreen(); else { errSound(); fb('Неверно. Подсказка: 7, 17, 27... и 70-79.', 'err'); } })); };
+
+/* ФИНАЛЬНЫЙ ЭКРАН */
+const MASON_SYMBOLS = ['△','▽','◉','✡','☥','☭','⚖','⚜','☤','♆','☬','☯','★','☆','∞','∑','∏','√','∫','∂','∇','⊕','⊗','⊙','∴','∵','≈','≡','≠','⟁','⧉','⬢','⬣','⯃','⯄','⚰','⚱','α','β','γ','δ','ε','ζ','η','θ'];
+function scatterSymbols() {
+  const screen = document.getElementById('finalScreen');
+  screen.querySelectorAll('.mason-sym').forEach(e => e.remove());
+  for (let i = 0; i < 40; i++) {
+    const span = document.createElement('span');
+    span.className = 'mason-sym'; span.textContent = MASON_SYMBOLS[Math.floor(Math.random() * MASON_SYMBOLS.length)];
+    span.style.left = (Math.random() * 92 + 2) + 'vw'; span.style.top = (Math.random() * 92 + 2) + 'vh';
+    span.style.fontSize = (14 + Math.random() * 22) + 'px'; span.style.opacity = (0.3 + Math.random() * 0.4).toFixed(2);
+    screen.appendChild(span);
+  }
+}
+function showFinalScreen() {
+  document.body.className = ''; document.getElementById('stage').style.display = 'none'; document.getElementById('topBar').style.display = 'none';
+  const screen = document.getElementById('finalScreen'); screen.classList.add('show'); scatterSymbols();
+  const nifi = document.getElementById('nifi'); const mystery = document.getElementById('mystery'); const trophy = document.getElementById('trophy');
+  mystery.classList.remove('show'); trophy.classList.remove('show'); beep(80, 1, 'sawtooth', .15);
+  let nifiClickCount = 0;
+  nifi.onclick = () => {
+    nifiClickCount++;
+    if (nifiClickCount === 3 && !mystery.classList.contains('show')) { markEgg('nifi3'); showEgg('👁 Сатурн видит твоё любопытство. +1 секрет.', 3000); }
+    if (mystery.classList.contains('show')) return;
+    mystery.classList.add('show'); beep(60, .5, 'sawtooth', .2); setTimeout(() => beep(50, .5, 'sawtooth', .15), 200);
+    setTimeout(() => { mystery.classList.remove('show'); trophy.classList.add('show'); beep(523, .2, 'triangle', .15); setTimeout(() => beep(659, .2, 'triangle', .15), 200); setTimeout(() => beep(784, .2, 'triangle', .15), 400); setTimeout(() => beep(1047, .4, 'triangle', .18), 600); markEgg('victory'); setTimeout(() => showEgg('🏆 Ты прошёл 100 уровней. NIFILIFIN гордится тобой.', 6000), 1200); }, 5000);
+  };
+}
+
+/* СЕКРЕТНЫЙ -666 */
+const secretStages = [
+  () => { taskEl.innerHTML = '<b>Гексаграмма.</b><br>Нажми на вершины по порядку: <b>1→2→3→4→5→6</b>.'; const hex = document.createElement('div'); hex.className = 'hexWrap'; const angles = [-90, -30, 30, 90, 150, 210]; const dots = []; angles.forEach((a, i) => { const rad = a * Math.PI / 180; const cx = 150 + Math.cos(rad) * 120; const cy = 150 + Math.sin(rad) * 120; const d = document.createElement('div'); d.className = 'hexDot'; d.textContent = i + 1; d.style.left = cx + 'px'; d.style.top = cy + 'px'; d.addEventListener('click', () => { if (d.classList.contains('on')) return; const next = dots.filter(x => x.classList.contains('on')).length; if (i === next) { d.classList.add('on'); beep(400 + i*80, .08, 'square', .1); if (next === 5) { setTimeout(() => { beep(80, .5, 'sawtooth', .2); secretStage = 1; saveProgress(); renderSecretLevel(); }, 400); } } else { d.classList.add('wrong'); errSound(); setTimeout(() => dots.forEach(x => { x.classList.remove('on'); x.classList.remove('wrong'); }), 400); } }); hex.appendChild(d); dots.push(d); }); const lines = [[0,2],[2,4],[4,0],[1,3],[3,5],[5,1]]; lines.forEach(([a,b]) => { const ca = angles[a]*Math.PI/180, cb = angles[b]*Math.PI/180; const x1 = 150 + Math.cos(ca)*120, y1 = 150 + Math.sin(ca)*120; const x2 = 150 + Math.cos(cb)*120, y2 = 150 + Math.sin(cb)*120; const line = document.createElement('div'); line.className = 'hexLine'; const len = Math.hypot(x2-x1, y2-y1); const ang = Math.atan2(y2-y1, x2-x1) * 180/Math.PI; line.style.width = len+'px'; line.style.height = '2px'; line.style.left = x1+'px'; line.style.top = y1+'px'; line.style.transformOrigin = '0 0'; line.style.transform = `rotate(${ang}deg)`; hex.appendChild(line); }); areaEl.innerHTML = ''; areaEl.appendChild(hex); },
+  () => { taskEl.innerHTML = 'Всевидящее око видит тебя.<br><b>Сколько вершин у глаза?</b>'; const inp = makeInput('?'); inp.classList.add('hellCell'); areaEl.innerHTML = ''; areaEl.appendChild(inp); areaEl.appendChild(makeBtn('ОТВЕТ', () => { if (normalizeNum(inp.value) === 2) { secretStage = 2; saveProgress(); renderSecretLevel(); beep(200, .3, 'sawtooth', .15); } else { errSound(); fb('Око недовольно.', 'err'); } })); },
+  () => { taskEl.innerHTML = 'Циркуль и наугольник.<br><b>Введи священное число.</b>'; const inp = makeInput('...'); inp.classList.add('hellCell'); areaEl.innerHTML = ''; areaEl.appendChild(inp); areaEl.appendChild(makeBtn('ПРОВЕРИТЬ', () => { if (inp.value.trim() === '666') { secretStage = 3; saveProgress(); renderSecretLevel(); beep(60, .8, 'sawtooth', .2); } else { errSound(); fb('Не то.', 'err'); } })); },
+  () => { taskEl.innerHTML = 'Сатурн отпускает.<br><b>6 + 6 + 6 = ?</b>'; const inp = makeInput('?'); inp.classList.add('hellCell'); areaEl.innerHTML = ''; areaEl.appendChild(inp); const btn = makeBtn('ВЕРНУТЬСЯ', () => { if (normalizeNum(inp.value) === 18) { document.body.className = ''; inSecret = false; secretStage = 0; secretSolved = true; saveProgress(); winTitle.textContent = 'ВОЗВРАЩЕНИЕ'; winText.textContent = 'Сатурн отпустил тебя.'; winOverlay.classList.add('show'); nextBtn.onclick = () => { winOverlay.classList.remove('show'); currentLevel = 7; renderLevel(); }; } else { errSound(); fb('Сатурн недоволен.', 'err'); } }, 'btn'); btn.style.background = 'linear-gradient(135deg,#f33,#900)'; areaEl.appendChild(btn); }
+];
+function renderSecretLevel() { document.body.className = 'hell'; document.getElementById('eyeBg').style.display = 'block'; lvlLabel.textContent = 'УРОВЕНЬ −666'; clearArea(); secretStages[secretStage](); }
+
+function renderLevel() {
+  clearArea(); document.body.className = ''; 
+  document.getElementById('secretBtn').style.pointerEvents = 'none'; document.getElementById('secretDot').classList.remove('active'); document.getElementById('eyeBg').style.display = 'none';
+  document.getElementById('finalScreen').classList.remove('show'); document.getElementById('stage').style.display = 'flex'; document.getElementById('topBar').style.display = 'flex';
+  
+  gameTitle.style.display = 'block';
+  gameAuthor.style.display = 'block';
+
+  if (inSecret) { renderSecretLevel(); saveProgress(); return; }
+  
+  lvlLabel.textContent = 'УРОВЕНЬ ' + currentLevel + ' / ' + totalLevels;
+  
+  if (currentLevel === 'caesar') {
+    renderCaesarLevel();
+    return;
+  }
+  
+  gameTitle.style.display = 'none';
+  gameAuthor.style.display = 'none';
+
+  if (LEVELS[currentLevel]) LEVELS[currentLevel](); else taskEl.textContent = 'Конец.';
+  saveProgress();
+}
+function nextLevel() { currentLevel++; if (currentLevel > totalLevels) currentLevel = totalLevels; renderLevel(); }
+
+updateEggBar(); loadProgress(); renderLevel();
+</script>
+</body>
+</html>
